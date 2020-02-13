@@ -1,127 +1,125 @@
 
-var appId = "135f0ff9";
-var appKey = "82ad2952dd6bf76333298a0399ff63d8";
+import * as imported from './modules.js'
+const {appId, appKey, Image, Title, Calories, Label, Recipe, Labels} = imported;
 
-var loader = document.querySelector(".loader");
+const loader = document.querySelector(".loader");
+const diet = document.querySelector(".diet");
+const health = document.querySelector(".health");
+const searchFood = document.querySelector(".keyword-input");
+const recipesSection = document.querySelector("#recipes");
+const calValues = document.querySelectorAll(".cal");
 
-var diet = document.querySelector(".diet");
-var health = document.querySelector(".health");
-var searchFood = document.querySelector(".keyword-input");
-var recipesSection = document.querySelector("#recipes");
-var calValues = document.querySelectorAll(".cal");
+let dietValue = '';
+let healthValue = '';
+let calMinValue = '';
+let calMaxValue = '';
+let caloriesValue = '';
 
-var dietValue = '';
-var healthValue = '';
-var calMinValue = '';
-var calMaxValue = '';
+class Url{
 
-function loading(){
-	loader.style.visibility = "visible";
+	constructor(adress){
+		this.adress = adress;
+	}
+
+	checkDiet(){
+		if (dietValue) {
+			this.adress += `&diet=${dietValue}`;
+		}
+	}
+
+	checkHealth(){
+		if (healthValue) {
+			this.adress += `&health=${healthValue}`;
+		}
+	}
+
+	checkCalories(){
+		if (calMinValue) {
+			caloriesValue = calMinValue + '-';
+			if (calMaxValue) {
+				caloriesValue += calMaxValue;
+			}
+		} else if (calMaxValue) {
+			caloriesValue = calMaxValue;
+		}
+
+		if (caloriesValue) {
+			this.adress += `&calories=${caloriesValue}`;
+		}
+	}
+
+	checkPaprameters(){
+		this.checkDiet();
+		this.checkHealth();
+		this.checkCalories();
+	}
 }
 
-function loaded() {
-	loader.style.visibility = "hidden";
-}
+const  loading = ()=> loader.style.visibility = "visible";
+const  loaded = ()=> loader.style.visibility = "hidden";
 
-function getRecipes(searchValue, from) {
-	var request = new XMLHttpRequest();
+const getRecipes = (searchValue, from) => {
+	loading();
+
 	if(from === undefined) {
 		from = 0;
 	}
+	
+	let requestURL = new Url (`https://api.edamam.com/search?q=${searchValue}&app_id=${appId}&app_key=${appKey}&from=${from}`);
+	requestURL.checkPaprameters();
 
-	var requestURL = 'https://api.edamam.com/search?q=' + searchValue + '&app_id='
-	+ appId + '&app_key=' + appKey + '&from=' + from;
-
-	requestURL = checkPaprameters(requestURL);
-
-	request.open("GET", requestURL);
-
-	request.onload = function(){
-		listRecipes(JSON.parse(request.responseText).hits); 
-		var count = document.querySelector(".recipe-count-number");
-		JSON.parse(request.responseText).count === 0 ? 
+	fetch(requestURL.adress)
+  	.then((response) => {
+    	return response.json();
+  	})
+  	.then((myJson) => {
+    	listRecipes(myJson.hits);
+    	let count = document.querySelector(".recipe-count-number");
+		myJson.count === 0 ? 
 		alert("No results found - change parameters") : 
-		count.textContent = JSON.parse(request.responseText).count;
-		var numberOfPages = Math.ceil(JSON.parse(request.responseText).count/10);
+		count.textContent = myJson.count;
+		let numberOfPages = Math.ceil(myJson.count/10);
 		if (numberOfPages > 10) {
 			numberOfPages = 10;
 		}
 		pagination(from/10 + 1, numberOfPages);
 		loaded();
-	}
+  	})
+  	.catch((error) => {
+	  alert(`Error: ${error}`);
+	});
 
-	request.send();
-	loading();
 }
 
-
-function checkPaprameters(someURL) {
-	var caloriesValue = '';
-
-	if (dietValue) {
-		someURL = someURL + '&diet=' + dietValue;
-	}
-
-	if (healthValue) {
-		someURL = someURL + '&health=' + healthValue;
-	}
-
-	if (calMinValue) {
-		caloriesValue = calMinValue + '-';
-		if (calMaxValue) {
-			caloriesValue += calMaxValue;
-		}
-	} else if (calMaxValue) {
-		caloriesValue = calMaxValue;
-	}
-
-	if (caloriesValue) {
-		someURL = someURL + '&calories=' + caloriesValue;
-	}
-	return someURL;
-}
-
-function listRecipes(recipes) {
+const listRecipes = recipes => {
 	recipesSection.innerHTML = "";
-
-	recipes.forEach(function(recipe) {
-		addRecipe(recipe);
-	})
+	recipes.forEach(recipe => addRecipe(recipe));
 	loaded();
 }
 
-function addRecipe(recipeData) {	
-	var recipeElement = document.createElement("div");
-	recipeElement.classList.add("recipe-element");
-	recipesSection.appendChild(recipeElement);
+const addRecipe = recipeData => {	
+	let {image, label, calories, healthLabels} = recipeData.recipe;
 
-	var img = '<img src="' + recipeData.recipe.image +'">';
-	var title = '<h3>' + recipeData.recipe.label + '</h3>';
-	var calories = '<div class="calories">' +
-	Math.round(recipeData.recipe.calories/recipeData.recipe.yield) + '</div>';
+	let img = new Image(image);
+	let title = new Title(label)
+	let cals = new Calories(Math.round(calories/recipeData.recipe.yield));
+	let labels = new Labels();
 
-	recipeElement.innerHTML = img + title + calories;
-
-	var labels = document.createElement("div");
-	labels.classList.add("labels");
-	recipeElement.appendChild(labels);
-
-	var myLabels = recipeData.recipe.healthLabels;
-	myLabels.forEach((element)=> {
-		var label = document.createElement("div");
-		label.classList.add("label");
-		label.textContent = element;
-		labels.appendChild(label);
+	healthLabels.forEach(element => {
+		let label = new Label(element);
+		labels.addLabel(label.content);
 	})
+	let recipeElement = new Recipe(img.content + title.content + cals.content + labels.content);
+	recipesSection.innerHTML += recipeElement.content;
 }
 
-function pagination(current, last) {
-	var delta = 3;
-	var range = 7;
-	var pages = [];
+const pagination = (current, last) => {
+	let delta = 3;
+	let range = 7;
+	let pages = [];
 
-	var left = current - delta;
-	var right = current + delta;
+	let left = current - delta;
+	let right = current + delta;
 
 	if (range >= last) {
 		range = last;
@@ -138,7 +136,7 @@ function pagination(current, last) {
 
 	range = right - left + 1;
 	
-	for (var i = 0; i < range; i++) {
+	for (let i = 0; i < range; i++) {
 		pages[i] = left;
 		left ++;
 	}
@@ -146,17 +144,17 @@ function pagination(current, last) {
 	createArrows(current, last);
 }
 
-function addPagination(someArrayOfPages, currentPage) {
-	var mainPagination = document.querySelector(".pagination");
+const addPagination = (someArrayOfPages, currentPage) => {
+	let mainPagination = document.querySelector(".pagination");
 	mainPagination.style.display = "flex";
 	mainPagination.innerHTML = "";
 
-	var listPages = document.createElement("div");
+	let listPages = document.createElement("div");
 	listPages.classList.add("pages");
 	mainPagination.appendChild(listPages);
 
-	for (var i = 0; i <= someArrayOfPages.length -1; i++) {
-		var page = document.createElement("span");
+	for (let i = 0; i <= someArrayOfPages.length -1; i++) {
+		let page = document.createElement("span");
 		page.textContent = someArrayOfPages[i];
 		
 		if (someArrayOfPages[i] === currentPage) {
@@ -165,30 +163,24 @@ function addPagination(someArrayOfPages, currentPage) {
 		listPages.appendChild(page);	
 	}
 
-	var mySpans = document.querySelectorAll(".pages span");
-	mySpans.forEach((element)=> {
-		element.addEventListener("click", ()=> {
-			getRecipes(foodValue, (element.textContent - 1)*10);
-		})
-	})
+	let mySpans = document.querySelectorAll(".pages span");
+	mySpans.forEach(element => element.addEventListener("click", ()=> getRecipes(foodValue, (element.textContent - 1)*10)));
 }
 
-function createArrows(myCurrentPage, myLastPage) {
-	var previousPage = createArrow("previous-page");
-	var firstPage = createArrow("first-page");
-	var nextPage = createArrow("next-page");
-	var lastPage = createArrow("last-page");
-	
-	if (myCurrentPage === 1) {
-		var previous = 1
-	} else {
-		var previous = myCurrentPage - 1;
-	}
+const createArrows = (myCurrentPage, myLastPage) => {
+	let previousPage = createArrow("previous-page");
+	let firstPage = createArrow("first-page");
+	let nextPage = createArrow("next-page");
+	let lastPage = createArrow("last-page");
 
+	let previous = myCurrentPage - 1;
+	if (myCurrentPage === 1) {
+		previous = 1;
+	} 
+
+	let next = myCurrentPage + 1;
 	if (myCurrentPage === myLastPage) {
-		var next = myCurrentPage;
-	} else {
-		var next = myCurrentPage + 1;
+		next = myCurrentPage;
 	}
 
 	addListener(firstPage, 1);
@@ -197,16 +189,12 @@ function createArrows(myCurrentPage, myLastPage) {
 	addListener(nextPage, next);
 }
 
-function addListener(element, number){
-	element.addEventListener("click", ()=> {
-		getRecipes(foodValue, (number - 1)*10);
-	});
-}
+const addListener = (element, number) => element.addEventListener("click", ()=> getRecipes(foodValue, (number - 1)*10));
 
-function createArrow(someClass) {
-	var mainPagination = document.querySelector(".pagination");
-	var someArrow = document.createElement("div");
-	var someSpan = document.createElement("span");
+const createArrow = someClass => {
+	let mainPagination = document.querySelector(".pagination");
+	let someArrow = document.createElement("div");
+	let someSpan = document.createElement("span");
 	someArrow.classList.add(someClass);
 	someArrow.appendChild(someSpan);
 
@@ -229,17 +217,14 @@ function createArrow(someClass) {
 
 // init 
 
-var button = document.querySelector(".search-button");
+const button = document.querySelector(".search-button");
 
-calValues[0].onkeyup = function() {
-	calMinValue = calValues[0].value;
-}
+calValues[0].onkeyup = () => calMinValue = calValues[0].value;
+calValues[1].onkeyup = () => calMaxValue = calValues[1].value;
+diet.onchange = () => dietValue = diet.value;
+health.onchange = () => healthValue = health.value;
 
-calValues[1].onkeyup = function() {
-	calMaxValue = calValues[1].value;
-}
-
-searchFood.onkeyup = function() {
+searchFood.onkeyup = () => {
 	button.removeAttribute("disabled");
 	if (searchFood.value === "") {
 		button.setAttribute("disabled", true);
@@ -247,14 +232,4 @@ searchFood.onkeyup = function() {
 	window.foodValue = searchFood.value;
 }
 
-diet.onchange = function() {
-	dietValue = diet.value;
-}
-
-health.onchange = function() {
-	healthValue = health.value;
-}
-
-button.addEventListener("click", e=> {
-	getRecipes(foodValue);
-})
+button.addEventListener("click", () => getRecipes(foodValue));
