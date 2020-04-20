@@ -156,6 +156,7 @@ main {
     color: #fff;
     cursor: pointer;
     transition: all .3s ease;
+    border-radius: 5px;
 }
 
 #food-form button:hover {
